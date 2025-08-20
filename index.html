@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumber Estimator AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Simple spinner */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #fff;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+        #result-content h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #4a5568;
+        }
+        #result-content ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        #result-content li {
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+        #result-content li span:first-child {
+            color: #a0aec0;
+        }
+         #result-content li span:last-child {
+            font-weight: 500;
+        }
+        #result-content strong {
+            font-weight: 600;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <div class="flex flex-col md:flex-row min-h-screen">
+        <!-- Left Panel: Controls -->
+        <div class="w-full md:w-1/2 lg:w-1/3 p-6 bg-gray-800/50 border-r border-gray-700 flex flex-col">
+            <header class="mb-6">
+                <h1 class="text-3xl font-bold text-white">Lumber Estimator AI</h1>
+                <p class="text-gray-400 mt-1">Upload plans, use the prompt, and get a detailed material takeoff.</p>
+            </header>
+
+            <div class="flex-grow flex flex-col space-y-4">
+                <!-- Step 1: File Upload -->
+                <div>
+                    <label for="file-upload" class="block text-sm font-medium text-gray-300 mb-1">1. Upload Architectural Plans (PDF)</label>
+                    <div class="mt-1 flex items-center space-x-2">
+                        <label for="file-upload" class="cursor-pointer bg-gray-700 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200">
+                            Choose File
+                        </label>
+                        <input id="file-upload" name="file-upload" type="file" class="sr-only" accept=".pdf">
+                        <span id="file-name" class="text-sm text-gray-400 truncate">No file selected...</span>
+                    </div>
+                </div>
+
+                <!-- Step 2: Prompt -->
+                <div>
+                    <label for="prompt-input" class="block text-sm font-medium text-gray-300 mb-1">2. Review Your Prompt</label>
+                    <textarea id="prompt-input" rows="20" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-sm"></textarea>
+                </div>
+            </div>
+
+            <!-- Step 3: Generate Button -->
+            <div class="mt-6">
+                <button id="generate-btn" class="w-full flex justify-center items-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition-colors duration-200 disabled:bg-blue-800 disabled:cursor-not-allowed">
+                    <span id="btn-text">Generate Estimate</span>
+                    <div id="spinner" class="spinner hidden ml-3"></div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Panel: Results -->
+        <div class="w-full md:w-1/2 lg:w-2/3 p-6 md:p-8 flex flex-col">
+            <div id="result-header" class="flex justify-end mb-4 h-10">
+                 <!-- Copy button will be injected here -->
+            </div>
+            <div id="result-container" class="h-full overflow-y-auto">
+                <div id="placeholder" class="flex flex-col items-center justify-center h-full text-center text-gray-500">
+                    <svg class="w-16 h-16 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    </svg>
+                    <h2 class="text-xl font-semibold">Your detailed material estimate will appear here.</h2>
+                    <p class="mt-1">Upload your plans and click "Generate Estimate" to begin.</p>
+                </div>
+                <div id="result-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileUpload = document.getElementById('file-upload');
+        const fileNameSpan = document.getElementById('file-name');
+        const promptInput = document.getElementById('prompt-input');
+        const generateBtn = document.getElementById('generate-btn');
+        const btnText = document.getElementById('btn-text');
+        const spinner = document.getElementById('spinner');
+        const resultContainer = document.getElementById('result-container');
+        const resultHeader = document.getElementById('result-header');
+        const resultContent = document.getElementById('result-content');
+        const placeholder = document.getElementById('placeholder');
+
+        let fileBase64 = null;
+        let fileMimeType = null;
+
+        // Pre-populate the prompt textarea
+        const promptTemplate = `# Role
+You are a senior Lumber and Materials Estimator. Your task is to perform a detailed, multi-stage material takeoff from architectural plans.
+
+# Primary Task
+Create a complete and accurate material list formatted as a point-form quote package. The estimate must be comprehensive, covering all stages of construction from the foundation to the finishes, based on the provided plans and the specific calculation rules below.
+
+# Calculation Rules & Methodology
+
+1. Framing:
+- First Floor Exterior Wall Studs: Calculate using 1 stud per linear foot of the wall. Determine stud length from elevation/section drawings.
+- Gable-End Wall Studs: For second-floor gables, calculate the quantity of studs based on 16" on-center spacing across the building's width. The stud length must be based on the peak height of the gable, calculated from the elevation drawings (peak height minus the second-floor deck height).
+- Interior Wall Studs: Calculate based on measurements from the floor plan, assuming 1 stud per linear foot.
+- Wall Plates: Calculate for all walls using the formula: (Total Linear Footage of Walls x 3) / 16 feet.
+- Subfloor: Only calculate for wood-framed floor systems (like the second floor). Do not calculate for a concrete slab-on-grade first floor.
+
+2. Siding & Exterior Trim:
+- Siding Area: Calculate the total exterior wall surface area, including the triangular gable ends.
+- Siding Pieces: Based on the siding area, calculate the total number of pieces needed using the dimensions I provide (e.g., 8" x 12'). Add a 15% waste factor to the final piece count.
+- Trim: Quantify all trim pieces:
+    - Starter Strip & Fascia/Soffit/Gutters: Based on the linear footage of the eaves.
+    - J-Channel: Based on the perimeter of all windows, doors, and roof rakes.
+    - Corner Posts: Based on a physical count of inside and outside corners from the floor plan.
+
+3. Roofing:
+- Roofing Materials (Shingles, Sheathing, Eaves Guard): Calculate based on the total roof surface area.
+- Shingles: Use the specific coverage rate I provide (e.g., 1 bundle covers 32 sq ft) and add a 15% waste factor.
+- Drip Edge: Calculate based on the total perimeter of the roof (eaves + rakes).
+
+# Output Format
+
+- The final output must be a single, consolidated, point-form list.
+- Organize the list into the following exact categories:
+    1. Foundation & Site Work
+    2. First Floor Materials
+    3. Second Floor Materials
+    4. Exterior Envelope & Roofing
+    5. Mechanical & Electrical Systems
+- Every line item must have a specific quantity (e.g., "85 EA", "26 Sheets", "455 sq ft"). Use "1 Lot" only for complex systems like plumbing pipes or electrical wiring.
+- Include a standard disclaimer at the end regarding labor, taxes, and the need for on-site verification by the builder.
+
+# Critical Instructions (To Avoid Back-and-Forth)
+- Initial Review: Before providing the final quote, perform a quick review of the plans.
+- Ask Clarifying Questions: If you find missing dimensions (like wall heights), conflicting information (like a lintel schedule that contradicts a simple instruction), or unclear details, you MUST ask me targeted questions first before proceeding.
+- Acknowledge All Details: Pay close attention to specific callouts in the plans, such as ZIP system sheathing, radon barriers, insulation types (spray foam vs. batt), and engineered beams (LVLs), and ensure they are included in the list.`;
+        promptInput.value = promptTemplate;
+
+        // Handle file selection
+        fileUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                fileNameSpan.textContent = file.name;
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    fileBase64 = reader.result.split(',')[1];
+                    fileMimeType = file.type;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                fileNameSpan.textContent = 'No file selected...';
+                fileBase64 = null;
+                fileMimeType = null;
+            }
+        });
+
+        // Handle generate button click
+        generateBtn.addEventListener('click', async () => {
+            if (!fileBase64) {
+                displayError("Please upload a PDF file of the architectural plans first.");
+                return;
+            }
+            if (!promptInput.value.trim()) {
+                displayError("Please provide a prompt.");
+                return;
+            }
+
+            setLoading(true);
+            
+            try {
+                const resultText = await callGeminiApi();
+                displayResult(resultText);
+            } catch (error) {
+                console.error("API Call Error:", error);
+                displayError(`An error occurred: ${error.message}. Please check the console for more details.`);
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // Function to call the Gemini API
+        async function callGeminiApi() {
+            const prompt = promptInput.value;
+            const payload = {
+                contents: [
+                    {
+                        role: "user",
+                        parts: [
+                            { text: prompt },
+                            {
+                                inlineData: {
+                                    mimeType: fileMimeType,
+                                    data: fileBase64
+                                }
+                            }
+                        ]
+                    }
+                ],
+            };
+            
+            const apiKey = ""; // Leave empty, will be handled by the environment
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            let response;
+            let retries = 3;
+            let delay = 1000;
+
+            for (let i = 0; i < retries; i++) {
+                try {
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        if (result.candidates && result.candidates.length > 0 &&
+                            result.candidates[0].content && result.candidates[0].content.parts &&
+                            result.candidates[0].content.parts.length > 0) {
+                            return result.candidates[0].content.parts[0].text;
+                        } else {
+                            throw new Error("Invalid response structure from API.");
+                        }
+                    } else if (response.status === 429 || response.status >= 500) {
+                        console.warn(`Request failed with status ${response.status}. Retrying in ${delay}ms...`);
+                        await new Promise(res => setTimeout(res, delay));
+                        delay *= 2;
+                    } else {
+                        const errorBody = await response.json();
+                        throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorBody.error?.message || 'Unknown error'}`);
+                    }
+                } catch (error) {
+                    if (i === retries - 1) throw error;
+                }
+            }
+            throw new Error("API request failed after multiple retries.");
+        }
+
+        // UI helper functions
+        function setLoading(isLoading) {
+            if (isLoading) {
+                generateBtn.disabled = true;
+                btnText.textContent = 'Generating...';
+                spinner.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+                resultContent.innerHTML = '';
+                resultHeader.innerHTML = '';
+            } else {
+                generateBtn.disabled = false;
+                btnText.textContent = 'Generate Estimate';
+                spinner.classList.add('hidden');
+            }
+        }
+
+        function displayError(message) {
+            placeholder.classList.remove('hidden');
+            resultContent.innerHTML = '';
+            resultHeader.innerHTML = '';
+            placeholder.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-center text-red-400">
+                <svg class="w-16 h-16 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                <h2 class="text-xl font-semibold">An Error Occurred</h2>
+                <p class="mt-1">${message}</p>
+            </div>`;
+        }
+
+        function displayResult(markdownText) {
+            placeholder.classList.add('hidden');
+            resultContent.innerHTML = markdownToHtml(markdownText);
+            
+            // Add Copy Button
+            const copyButton = document.createElement('button');
+            copyButton.innerHTML = `<svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" /></svg><span>Copy Results</span>`;
+            copyButton.className = 'flex items-center bg-gray-700 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200';
+            copyButton.onclick = () => copyResultsToClipboard(copyButton, markdownText);
+            resultHeader.innerHTML = '';
+            resultHeader.appendChild(copyButton);
+        }
+        
+        function copyResultsToClipboard(button, textToCopy) {
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            textarea.style.position = 'fixed'; // Prevent scrolling to bottom of page in MS Edge.
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                button.querySelector('span').textContent = 'Copied!';
+                setTimeout(() => {
+                    button.querySelector('span').textContent = 'Copy Results';
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+            }
+            document.body.removeChild(textarea);
+        }
+
+        // Simple Markdown to HTML converter for display
+        function markdownToHtml(md) {
+            let html = md;
+            html = html.replace(/^###\s+(.*$)/gim, '<h3>$1</h3>');
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            html = html.split('\n').map(line => {
+                if (line.startsWith('* ')) {
+                    const content = line.substring(2);
+                    const parts = content.split(':');
+                    if (parts.length > 1) {
+                        return `<li><span>${parts[0].trim()}:</span> <span>${parts.slice(1).join(':').trim()}</span></li>`;
+                    }
+                    return `<li><span>${content}</span></li>`;
+                }
+                return line;
+            }).join('\n');
+            html = html.replace(/<li>(.*?)<\/li>/gs, (match) => `<ul>${match}</ul>`).replace(/<\/ul>\n<ul>/g, '');
+            html = html.replace(/^(Disclaimer:.*$)/gim, '<p class="text-sm text-gray-500 mt-6 italic">$1</p>');
+            return html;
+        }
+
+    </script>
+</body>
+</html>
