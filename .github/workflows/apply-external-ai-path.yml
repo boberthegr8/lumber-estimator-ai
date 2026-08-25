@@ -1,0 +1,34 @@
+name: Apply Quoter Universal AI Path
+
+on:
+  push:
+    branches:
+      - feature/forge-quoter-core-v1
+    paths:
+      - scripts/add_external_ai_path.py
+      - .github/workflows/apply-external-ai-path.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/forge-quoter-core-v1
+      - name: Apply universal AI path
+        run: python scripts/add_external_ai_path.py
+      - name: Commit generated Quoter changes
+        run: |
+          if git diff --quiet; then
+            echo "No generated changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.tsx src/index.css
+          git commit -m "Add universal AI prompt and JSON import to Quoter"
+          git push
