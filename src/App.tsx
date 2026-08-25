@@ -4,8 +4,10 @@ import {
   Boxes,
   CheckCircle2,
   ClipboardList,
+  Download,
   FileJson,
   LogOut,
+  Upload,
   RefreshCw,
   Save,
   Search,
@@ -102,6 +104,8 @@ const App: React.FC = () => {
   const [scopeId, setScopeId] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState<string>(DEFAULT_GEMINI_MODEL);
+  const [estimateSource, setEstimateSource] = useState<string>(DEFAULT_GEMINI_MODEL);
+  const [externalJson, setExternalJson] = useState('');
   const [estimate, setEstimate] = useState<EstimateResult | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -214,11 +218,36 @@ const App: React.FC = () => {
         .trim();
       const normalized = normalizeEstimate(parseJsonResponse(raw));
       setEstimate(normalized);
+      setEstimateSource(model);
       setMessage(`AI takeoff draft created with ${normalized.items.length} material lines. Review before saving to Core.`);
     } catch (err: any) {
       setError(err?.message || 'AI takeoff generation failed.');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const downloadPrompt = () => {
+    if (!selectedScope) return setError('Choose a Forge Scope first.');
+    const blob = new Blob([buildEstimatorPrompt(selectedScope)], { type: 'text/plain' });
+    const anchor = document.createElement('a');
+    anchor.href = URL.createObjectURL(blob);
+    anchor.download = `${selectedScope.title.replace(/[^a-z0-9-_]+/gi, '-') || 'Forge'}-Takeoff-Prompt.txt`;
+    anchor.click();
+    URL.revokeObjectURL(anchor.href);
+    setMessage('Universal takeoff prompt downloaded. Attach it to the same reviewed Scope context in your AI model, then paste the returned JSON here.');
+  };
+
+  const importExternalEstimate = () => {
+    setError('');
+    setMessage('');
+    try {
+      const normalized = normalizeEstimate(parseJsonResponse(externalJson));
+      setEstimate(normalized);
+      setEstimateSource('external-ai');
+      setMessage(`Imported external AI takeoff with ${normalized.items.length} material lines. Review before saving to Core.`);
+    } catch (err: any) {
+      setError(err?.message || 'Could not import that takeoff JSON.');
     }
   };
 
@@ -228,7 +257,7 @@ const App: React.FC = () => {
     setError('');
     setMessage('');
     try {
-      const saved = await commitEstimateToCore(workspace.context, selectedScope, estimate, model);
+      const saved = await commitEstimateToCore(workspace.context, selectedScope, estimate, estimateSource);
       setMessage(`Saved to Forge Core as takeoff ${saved.takeoffId.slice(0, 8)}… with ${saved.itemCount} lines.`);
       await refresh();
     } catch (err: any) {
@@ -240,7 +269,7 @@ const App: React.FC = () => {
 
   const exportJson = () => {
     if (!estimate || !selectedScope) return;
-    const blob = new Blob([JSON.stringify({ scopeId: selectedScope.id, scopeVersion: selectedScope.currentVersion, model, estimate }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ scopeId: selectedScope.id, scopeVersion: selectedScope.currentVersion, source: estimateSource, estimate }, null, 2)], { type: 'application/json' });
     const anchor = document.createElement('a');
     anchor.href = URL.createObjectURL(blob);
     anchor.download = `${selectedScope.title.replace(/[^a-z0-9-_]+/gi, '-') || 'Forge'}-AI-Takeoff.json`;
@@ -339,16 +368,27 @@ const App: React.FC = () => {
                         <div><span>Needs attention</span><strong className={scopeAttentionCount(selectedScope) ? 'warn-text' : ''}>{scopeAttentionCount(selectedScope) || 'None flagged'}</strong></div>
                       </div>
 
-                      <div className="key-grid">
-                        <label><span>Gemini API key — session only</span><input className="input" type="password" autoComplete="off" value={apiKey} onChange={event => setApiKey(event.target.value)} placeholder="Paste key; it is not saved to Core" /></label>
-                        <label><span>Model</span><select className="input" value={model} onChange={event => setModel(event.target.value)}>{GEMINI_MODELS.map(name => <option key={name}>{name}</option>)}</select></label>
+                      <div className="ai-path-grid">
+                        <section className="ai-path universal">
+                          <div className="ai-path-heading"><div><span className="eyebrow">Recommended</span><strong>Use any AI model</strong></div><Download size={18} /></div>
+                          <p>Download the strict Forge takeoff prompt, use it with ChatGPT, Claude, Gemini, Hermes or another capable model, then paste the returned JSON below.</p>
+                          <button className="button secondary full" onClick={downloadPrompt}><Download size={15} /> Download AI Takeoff Prompt</button>
+                          <textarea className="input external-json" value={externalJson} onChange={event => setExternalJson(event.target.value)} placeholder="Paste Forge takeoff JSON here…" />
+                          <button className="button primary full" onClick={importExternalEstimate} disabled={!externalJson.trim()}><Upload size={15} /> Import & Validate JSON</button>
+                        </section>
+
+                        <section className="ai-path quick">
+                          <div className="ai-path-heading"><div><span className="eyebrow">Quick AI</span><strong>Run Gemini in this browser</strong></div><Sparkles size={18} /></div>
+                          <p>Optional convenience path. Your Gemini key stays in this browser session and is never written to Forge Core.</p>
+                          <label><span>Gemini API key — session only</span><input className="input" type="password" autoComplete="off" value={apiKey} onChange={event => setApiKey(event.target.value)} placeholder="Paste key; it is not saved to Core" /></label>
+                          <label><span>Model</span><select className="input" value={model} onChange={event => setModel(event.target.value)}>{GEMINI_MODELS.map(name => <option key={name}>{name}</option>)}</select></label>
+                          <button className="button secondary full" onClick={() => void generate()} disabled={busy || !apiKey.trim()}>
+                            {busy ? <RefreshCw size={16} className="spin" /> : <Sparkles size={16} />} {busy ? 'Working…' : 'Generate with Gemini'}
+                          </button>
+                        </section>
                       </div>
 
-                      <div className="notice"><TriangleAlert size={17} /><div><strong>Estimator review is mandatory.</strong><span>AI receives the structured Scope—not a loose PDF—and must preserve RFIs, Verify fields, exclusions and source uncertainty.</span></div></div>
-
-                      <button className="button primary generate" onClick={() => void generate()} disabled={busy || !apiKey.trim()}>
-                        {busy ? <RefreshCw size={18} className="spin" /> : <Sparkles size={18} />} {busy ? 'Working…' : 'Generate AI Takeoff Draft'}
-                      </button>
+                      <div className="notice"><TriangleAlert size={17} /><div><strong>Estimator review is mandatory.</strong><span>Every AI path uses the same Forge validator and Core takeoff contract. RFIs, Verify fields, exclusions and source uncertainty must remain visible.</span></div></div>
                     </>
                   ) : <div className="empty large">Create or select a reviewed Forge Scope before generating a takeoff.</div>}
                 </div>
