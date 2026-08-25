@@ -140,8 +140,8 @@ export async function loadQuoterWorkspace(): Promise<QuoterWorkspace> {
 
   const locations = locationsResult.data || [];
   const location = locations.find((row: any) => row.code === FORGE_CORE_CONFIG.defaultLocationCode) || locations[0];
-  const customerMap = new Map((customersResult.data || []).map((row: any) => [row.id, row.display_name]));
-  const projectMap = new Map((projectsResult.data || []).map((row: any) => [row.id, row]));
+  const customerMap = new Map<string, string>((customersResult.data || []).map((row: any) => [String(row.id), String(row.display_name || '')]));
+  const projectMap = new Map<string, { name?: string; customer_id?: string }>((projectsResult.data || []).map((row: any) => [String(row.id), { name: row.name || undefined, customer_id: row.customer_id || undefined }]));
 
   const scopes: CoreScope[] = (scopesResult.data || []).map((row: any) => {
     const project = row.project_id ? projectMap.get(row.project_id) : null;
