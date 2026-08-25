@@ -1,0 +1,42 @@
+name: Bootstrap Forge Quoter
+
+on:
+  push:
+    branches:
+      - feature/forge-quoter-core-v1
+    paths:
+      - package.json
+      - src/**
+      - index.html
+      - vite.config.ts
+      - tsconfig.json
+      - .github/workflows/bootstrap-forge-quoter.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Synchronize pinned lockfile
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck and build Forge Quoter
+        run: npm run build
+      - name: Commit lockfile
+        run: |
+          if [ -z "$(git status --porcelain -- package-lock.json)" ]; then
+            echo "Lockfile already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "Lock Forge Quoter dependencies"
+          git push

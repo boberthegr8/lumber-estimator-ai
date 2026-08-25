@@ -1,0 +1,34 @@
+name: Fix Quoter Core Types
+
+on:
+  push:
+    branches:
+      - feature/forge-quoter-core-v1
+    paths:
+      - scripts/fix_quoter_core_types.py
+      - .github/workflows/fix-quoter-core-types.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/forge-quoter-core-v1
+      - name: Fix Core lookup typing
+        run: python scripts/fix_quoter_core_types.py
+      - name: Commit generated type fix
+        run: |
+          if git diff --quiet; then
+            echo "No generated changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/forgeCore.ts
+          git commit -m "Type Forge Quoter Core lookup maps"
+          git push
