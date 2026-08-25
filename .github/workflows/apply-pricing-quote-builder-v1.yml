@@ -1,0 +1,41 @@
+name: Apply Quoter Pricing v1
+
+on:
+  push:
+    branches:
+      - feature/forge-quoter-pricing-v1
+    paths:
+      - scripts/add_pricing_quote_builder_v1.py
+      - .github/workflows/apply-pricing-quote-builder-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/forge-quoter-pricing-v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply Pricing + Quote Builder v1
+        run: python scripts/add_pricing_quote_builder_v1.py
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Typecheck and build
+        run: npm run build
+      - name: Commit generated Quoter changes
+        run: |
+          if git diff --quiet; then
+            echo "No generated changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.tsx src/forgeCore.ts src/index.css
+          git commit -m "Add Forge Quoter pricing and quote builder v1"
+          git push
