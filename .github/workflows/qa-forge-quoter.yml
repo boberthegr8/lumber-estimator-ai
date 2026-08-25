@@ -1,0 +1,41 @@
+name: QA Forge Quoter
+
+on:
+  push:
+    branches:
+      - main
+      - feature/forge-quoter-core-v1
+    paths:
+      - package.json
+      - package-lock.json
+      - index.html
+      - src/**
+      - vite.config.ts
+      - tsconfig.json
+      - .github/workflows/qa-forge-quoter.yml
+  pull_request:
+    paths:
+      - package.json
+      - package-lock.json
+      - index.html
+      - src/**
+      - vite.config.ts
+      - tsconfig.json
+      - .github/workflows/qa-forge-quoter.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Build Forge Quoter
+        run: npm run build
