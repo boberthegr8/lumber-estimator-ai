@@ -1,0 +1,35 @@
+name: Fix Quoter Verify Badge
+
+on:
+  push:
+    branches:
+      - feature/forge-quoter-core-v1
+    paths:
+      - scripts/fix_verify_badge.py
+      - .github/workflows/fix-quoter-verify-badge.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply Verify badge correction
+        run: python scripts/fix_verify_badge.py
+      - name: Build Quoter
+        run: |
+          npm ci
+          npm run build
+      - name: Commit corrected Quoter
+        run: |
+          if git diff --quiet -- src/App.tsx; then
+            echo "No correction to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.tsx
+          git commit -m "Render Quoter Verify lines as warnings"
+          git push
