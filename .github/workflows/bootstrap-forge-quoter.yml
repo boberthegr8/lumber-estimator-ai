@@ -23,14 +23,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Generate pinned lockfile if needed
-        run: |
-          if [ ! -f package-lock.json ]; then
-            npm install --package-lock-only --ignore-scripts
-          fi
+      - name: Synchronize pinned lockfile
+        run: npm install --package-lock-only --ignore-scripts
       - name: Install dependencies
         run: npm ci
-      - name: Build Forge Quoter
+      - name: Typecheck and build Forge Quoter
         run: npm run build
       - name: Commit lockfile
         run: |
