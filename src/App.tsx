@@ -379,7 +379,7 @@ const App: React.FC = () => {
                             <td className="number">{item.quantity}</td>
                             <td>{item.unit || '—'}</td>
                             <td><span>{item.source || 'Scope / calculation'}</span>{item.notes && <small>{item.notes}</small>}</td>
-                            <td><span className={`confidence ${(item.confidence || 'low').toLowerCase()}`}>{item.needsVerification ? 'Verify' : item.confidence || 'Unrated'}</span></td>
+                            <td><span className={`confidence ${item.needsVerification ? 'verify' : (item.confidence || 'low').toLowerCase()}`}>{item.needsVerification ? 'Verify' : item.confidence || 'Unrated'}</span></td>
                           </tr>)}
                         </tbody></table></div>
                       </section>
