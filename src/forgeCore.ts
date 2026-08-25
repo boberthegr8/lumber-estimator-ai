@@ -33,15 +33,47 @@ export interface CoreScope {
   updatedAt: string;
 }
 
+export interface CoreTakeoffItem {
+  id: string;
+  category?: string;
+  sku?: string;
+  description: string;
+  quantity: number;
+  unit?: string;
+  metadata: Record<string, any>;
+}
+
 export interface CoreTakeoff {
   id: string;
   title: string;
   status: string;
   scopeId?: string;
   projectId?: string;
+  customerId?: string;
+  customerName?: string;
   itemCount: number;
+  items: CoreTakeoffItem[];
   source?: string;
   createdAt: string;
+}
+
+export interface PricedTakeoffLine {
+  takeoffItemId: string;
+  quantity: number;
+  unitCost: number;
+  unitSell: number;
+}
+
+export interface CreatedQuoteResult {
+  quoteId: string;
+  quoteRevisionId: string;
+  quoteNumber: string;
+  itemCount: number;
+  subtotal: number;
+  costTotal: number;
+  tax: number;
+  total: number;
+  grossMarginPercent: number;
 }
 
 export interface QuoterWorkspace {
@@ -116,7 +148,7 @@ export async function loadQuoterWorkspace(): Promise<QuoterWorkspace> {
   }
 
   const organizationId = membership.organization_id;
-  const [organizationResult, locationsResult, customersResult, projectsResult, scopesResult, takeoffsResult] = await Promise.all([
+  const [organizationResult, locationsResult, customersResult, projectsResult, scopesResult, takeoffsResult, takeoffItemsResult] = await Promise.all([
     client.from('organizations').select('id,name').eq('id', organizationId).single(),
     client.from('locations').select('id,name,code,status').eq('organization_id', organizationId).eq('status', 'active').order('name'),
     client.from('customers').select('id,display_name').eq('organization_id', organizationId),
@@ -131,10 +163,15 @@ export async function loadQuoterWorkspace(): Promise<QuoterWorkspace> {
       .eq('organization_id', organizationId)
       .eq('source', 'forge-quoter')
       .order('created_at', { ascending: false })
-      .limit(50)
+      .limit(50),
+    client.from('takeoff_items')
+      .select('id,takeoff_id,category,sku,description,quantity,unit,metadata')
+      .eq('organization_id', organizationId)
+      .order('created_at', { ascending: true })
+      .limit(5000)
   ]);
 
-  for (const result of [organizationResult, locationsResult, customersResult, projectsResult, scopesResult, takeoffsResult]) {
+  for (const result of [organizationResult, locationsResult, customersResult, projectsResult, scopesResult, takeoffsResult, takeoffItemsResult]) {
     if (result.error) throw result.error;
   }
 
@@ -162,16 +199,40 @@ export async function loadQuoterWorkspace(): Promise<QuoterWorkspace> {
     };
   });
 
-  const takeoffs: CoreTakeoff[] = (takeoffsResult.data || []).map((row: any) => ({
-    id: row.id,
-    title: row.title || 'Untitled Takeoff',
-    status: row.status,
-    scopeId: row.scope_id || undefined,
-    projectId: row.project_id || undefined,
-    itemCount: Number(row.totals?.item_count || 0),
-    source: row.source || undefined,
-    createdAt: row.created_at
-  }));
+  const takeoffItemsByTakeoff = new Map<string, CoreTakeoffItem[]>();
+  (takeoffItemsResult.data || []).forEach((row: any) => {
+    const key = String(row.takeoff_id || '');
+    if (!key) return;
+    const next: CoreTakeoffItem = {
+      id: String(row.id),
+      category: row.category || undefined,
+      sku: row.sku || undefined,
+      description: row.description || 'Untitled material',
+      quantity: Number(row.quantity || 0),
+      unit: row.unit || undefined,
+      metadata: row.metadata || {}
+    };
+    takeoffItemsByTakeoff.set(key, [...(takeoffItemsByTakeoff.get(key) || []), next]);
+  });
+
+  const takeoffs: CoreTakeoff[] = (takeoffsResult.data || []).map((row: any) => {
+    const project = row.project_id ? projectMap.get(String(row.project_id)) : null;
+    const customerId = project?.customer_id || undefined;
+    const items = takeoffItemsByTakeoff.get(String(row.id)) || [];
+    return {
+      id: row.id,
+      title: row.title || 'Untitled Takeoff',
+      status: row.status,
+      scopeId: row.scope_id || undefined,
+      projectId: row.project_id || undefined,
+      customerId,
+      customerName: customerId ? customerMap.get(customerId) || undefined : undefined,
+      itemCount: items.length || Number(row.totals?.item_count || 0),
+      items,
+      source: row.source || undefined,
+      createdAt: row.created_at
+    };
+  });
 
   return {
     context: {
@@ -257,4 +318,45 @@ export async function commitEstimateToCore(
   const result = data?.[0];
   if (!result?.takeoff_id) throw new Error('Forge Core did not return a takeoff ID.');
   return { takeoffId: result.takeoff_id, itemCount: Number(result.item_count || items.length) };
+}
+
+
+export async function commitPricedTakeoffToQuote(
+  context: QuoterContext,
+  takeoff: CoreTakeoff,
+  quoteNumber: string,
+  title: string,
+  taxRate: number,
+  lines: PricedTakeoffLine[]
+): Promise<CreatedQuoteResult> {
+  const client = await getForgeCoreClient();
+  const { data, error } = await client.rpc('commit_priced_takeoff_quote_v1', {
+    p_organization_id: context.organizationId,
+    p_location_id: context.locationId || null,
+    p_takeoff_id: takeoff.id,
+    p_quote_number: quoteNumber.trim(),
+    p_title: title.trim() || takeoff.title,
+    p_customer_id: takeoff.customerId || null,
+    p_project_id: takeoff.projectId || null,
+    p_tax_rate: Number.isFinite(taxRate) ? taxRate : 0,
+    p_items: lines.map(line => ({
+      takeoff_item_id: line.takeoffItemId,
+      quantity: line.quantity,
+      unit_cost: line.unitCost,
+      unit_sell: line.unitSell
+    }))
+  });
+  if (error) throw error;
+  if (!data?.quote_id) throw new Error('Forge Core did not return a quote ID.');
+  return {
+    quoteId: data.quote_id,
+    quoteRevisionId: data.quote_revision_id,
+    quoteNumber: data.quote_number,
+    itemCount: Number(data.item_count || lines.length),
+    subtotal: Number(data.subtotal || 0),
+    costTotal: Number(data.cost_total || 0),
+    tax: Number(data.tax || 0),
+    total: Number(data.total || 0),
+    grossMarginPercent: Number(data.gross_margin_percent || 0)
+  };
 }
