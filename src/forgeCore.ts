@@ -106,15 +106,12 @@ export async function getForgeCoreClient(): Promise<SupabaseClientLike> {
   if (!clientPromise) {
     clientPromise = import(/* @vite-ignore */ FORGE_CORE_CONFIG.supabaseJsUrl).then((module: any) =>
       module.createClient(FORGE_CORE_CONFIG.url, FORGE_CORE_CONFIG.publishableKey, {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: true
-        }
+        auth: (window as any).ForgeSuite?.auth || { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
       })
     );
   }
-  return clientPromise;
+  const client = await clientPromise;
+  return (window as any).ForgeSuite ? (window as any).ForgeSuite.connect(client) : client;
 }
 
 export async function loadQuoterWorkspace(): Promise<QuoterWorkspace> {
@@ -255,7 +252,7 @@ export async function sendQuoterMagicLink(email: string): Promise<void> {
     email: email.trim(),
     options: {
       shouldCreateUser: false,
-      emailRedirectTo: `${window.location.origin}${window.location.pathname}`
+      emailRedirectTo: 'https://app.forgehub.dev/account.html'
     }
   });
   if (error) throw error;

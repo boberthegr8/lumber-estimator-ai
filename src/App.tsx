@@ -64,13 +64,13 @@ function SuiteNav() {
   return (
     <nav className="suite-nav">
       <div className="suite-label">Forge Suite</div>
-      <a className="suite-link" href="https://forge2-navy.vercel.app"><span>Home</span><ArrowUpRight size={13} /></a>
-      <a className="suite-link" href="https://forge-crm-six.vercel.app"><span>CRM</span><ArrowUpRight size={13} /></a>
-      <a className="suite-link" href="https://robquotes.vercel.app"><span>Reader</span><ArrowUpRight size={13} /></a>
-      <a className="suite-link" href="https://forge-scope.vercel.app"><span>Scope</span><ArrowUpRight size={13} /></a>
+      <a className="suite-link" href="https://app.forgehub.dev"><span>Home</span><ArrowUpRight size={13} /></a>
+      <a className="suite-link" href="https://crm.forgehub.dev"><span>CRM</span><ArrowUpRight size={13} /></a>
+      <a className="suite-link" href="https://reader.forgehub.dev"><span>Reader</span><ArrowUpRight size={13} /></a>
+      <a className="suite-link" href="https://scope.forgehub.dev"><span>Scope</span><ArrowUpRight size={13} /></a>
       <div className="suite-link active"><span>Quote / AI Quoter</span><span className="suite-dot" /></div>
-      <a className="suite-link" href="https://forgemfg.vercel.app"><span>Manufacturing</span><ArrowUpRight size={13} /></a>
-      <a className="suite-link" href="https://forge-portal-pi.vercel.app"><span>Portal</span><ArrowUpRight size={13} /></a>
+      <a className="suite-link" href="https://manufacturing.forgehub.dev"><span>Manufacturing</span><ArrowUpRight size={13} /></a>
+      <a className="suite-link" href="https://portal.forgehub.dev"><span>Portal</span><ArrowUpRight size={13} /></a>
     </nav>
   );
 }
@@ -449,7 +449,7 @@ const App: React.FC = () => {
                 <div className="panel scope-panel">
                   <div className="panel-heading">
                     <div><div className="eyebrow">1. Core input</div><h2>Choose reviewed Scope</h2></div>
-                    <a href="https://forge-scope.vercel.app" target="_blank" rel="noreferrer">Open Scope <ArrowUpRight size={13} /></a>
+                    <a href="https://scope.forgehub.dev" target="_blank" rel="noreferrer">Open Scope <ArrowUpRight size={13} /></a>
                   </div>
                   <div className="search-wrap"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search scope, customer, project…" /></div>
                   <div className="scope-list">
@@ -535,7 +535,7 @@ const App: React.FC = () => {
               <section className="panel pricing-panel" id="pricing">
                 <div className="panel-heading">
                   <div><div className="eyebrow">4. Pricing & quote builder</div><h2>Price an approved Core takeoff</h2></div>
-                  <a href="https://forge-crm-six.vercel.app/quotes" target="_blank" rel="noreferrer">Open CRM Quotes <ArrowUpRight size={13} /></a>
+                  <a href="https://crm.forgehub.dev/#/quotes" target="_blank" rel="noreferrer">Open CRM Quotes <ArrowUpRight size={13} /></a>
                 </div>
                 {workspace.takeoffs.length ? (
                   <>
