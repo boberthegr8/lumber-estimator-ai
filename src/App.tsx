@@ -384,10 +384,10 @@ const App: React.FC = () => {
   return (
     <div className="quoter-shell">
       <aside className="quoter-sidebar">
-        <div className="brand-block">
+        <a href="https://app.forgehub.dev/" aria-label="Back to Forge Home" title="Back to Forge Home" style={{color: 'inherit', textDecoration: 'none'}} className="brand-block">
           <div className="brand-logo">F</div>
           <div><div className="brand-name">FORGE</div><div className="brand-module">Quote / AI Quoter</div></div>
-        </div>
+        </a>
         <SuiteNav />
 
         <div className="sidebar-section-label">Quoter</div>
