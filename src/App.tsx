@@ -72,6 +72,7 @@ function SuiteNav() {
       <a className="suite-link" href="https://manufacturing.forgehub.dev"><span>Manufacturing</span><ArrowUpRight size={13} /></a>
       <a className="suite-link" href="https://portal.forgehub.dev"><span>Portal</span><ArrowUpRight size={13} /></a>
       <a className="suite-link" href="https://frame.forgehub.dev"><span>Frame · 3D Takeoff</span><ArrowUpRight size={13} /></a>
+      <a className="suite-link" href="https://todo.forgehub.dev"><span>To Do</span><ArrowUpRight size={13} /></a>
     </nav>
   );
 }
